@@ -1,4 +1,5 @@
 import type { DifficultyProfile, Personality } from '../../data/ai';
+import { BALANCE } from '../../data/balance';
 import type { Simulation } from '../core/simulation';
 import { distXZ, type Vec3 } from '../core/math';
 import type { Hero, Structure } from '../gameplay/entities';
@@ -161,7 +162,9 @@ export function evaluateGoals(ctx: StrategyContext): Goal[] {
     const s: Structure | null = ls.nextEnemyStructure;
     if (s && s.vulnerable && ls.ourFront > 0) {
       const front = pointOnPath(ls.path, ls.cum, ls.ourFront);
-      const waveAtTower = distXZ(front, s.pos) < s.def.range + 6;
+      // The wave counts as "at" a structure once it is close enough to strip its
+      // backdoor protection. (Shrines have no weapon, so their range is 0.)
+      const waveAtTower = distXZ(front, s.pos) < Math.max(s.def.range + 6, BALANCE.structures.backdoorRadius);
       if (waveAtTower) {
         const pushBase = 0.5 * P.push + (m.advantage - 1) * 0.25 + (isMine ? 0.12 : 0) - travelPenalty(hero, s.pos) - localRisk(ctx, s.pos) * 0.5 - othersOn('push', ls.lane) * 0.05;
         add({ kind: 'push', pos: s.pos, lane: ls.lane, targetId: s.id, base: pushBase, reason: `wave at ${s.def.name}` });
