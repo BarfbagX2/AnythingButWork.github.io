@@ -269,7 +269,14 @@ export class Hero extends Unit {
 
 export class Trooper extends Unit {
   readonly kind = 'trooper' as const;
+  /** Index of the lane waypoint ahead (end of the current path segment). */
   pathIndex = 0;
+  /** Distance travelled along the lane path (projection of the position). */
+  progress = 0;
+  /** Brief sideways detour used to get unstuck. */
+  detourUntil = 0;
+  detourX = 0;
+  detourZ = 0;
   targetId = -1;
   nextAttack = 0;
   nextRetarget = 0;

@@ -7,11 +7,75 @@ import type { LaneId, TeamId } from '../world/mapTypes';
 import { SF } from './types';
 
 const pushN = { x: 0, z: 0 };
+/** Troopers steer toward a point this far ahead of them along the lane. */
+const LOOKAHEAD = 6;
+/** Beyond this distance from the lane, troopers stop chasing and return. */
+const LANE_LEASH = 16;
+
+const reversed = new WeakMap<Vec3[], Vec3[]>();
+const cumulative = new WeakMap<Vec3[], number[]>();
 
 /** Lane path oriented for a team (index 0 inside its own base). */
 export function lanePathFor(sim: Simulation, lane: LaneId, team: TeamId): Vec3[] {
   const p = sim.map.lanes[lane].path;
-  return team === 0 ? p : [...p].reverse();
+  if (team === 0) return p;
+  let r = reversed.get(p);
+  if (!r) {
+    r = [...p].reverse();
+    reversed.set(p, r);
+  }
+  return r;
+}
+
+function cumulativeOf(path: Vec3[]): number[] {
+  let c = cumulative.get(path);
+  if (!c) {
+    c = [0];
+    for (let i = 1; i < path.length; i++) c.push(c[i - 1] + Math.hypot(path[i].x - path[i - 1].x, path[i].z - path[i - 1].z));
+    cumulative.set(path, c);
+  }
+  return c;
+}
+
+/**
+ * Projects a trooper onto its lane. Only the segments around its current one
+ * are considered (so a U-shaped lane's far leg is never mistaken for the
+ * near one) unless `global` is set.
+ */
+function projectOnLane(t: Trooper, global: boolean): { s: number; off: number; seg: number } {
+  const path = t.path;
+  const cum = cumulativeOf(path);
+  const last = path.length - 2;
+  const cur = Math.max(0, Math.min(last, t.pathIndex - 1));
+  const i0 = global ? 0 : Math.max(0, cur - 1);
+  const i1 = global ? last : Math.min(last, cur + 1);
+  let s = cum[cur];
+  let off = Infinity;
+  let seg = cur;
+  for (let i = i0; i <= i1; i++) {
+    const a = path[i];
+    const b = path[i + 1];
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const l2 = dx * dx + dz * dz || 1;
+    const u = Math.max(0, Math.min(1, ((t.pos.x - a.x) * dx + (t.pos.z - a.z) * dz) / l2));
+    const d = Math.hypot(t.pos.x - (a.x + dx * u), t.pos.z - (a.z + dz * u));
+    if (d < off - 1e-6) {
+      off = d;
+      s = cum[i] + Math.sqrt(l2) * u;
+      seg = i;
+    }
+  }
+  return { s, off, seg };
+}
+
+function pointOnLane(path: Vec3[], s: number): { x: number; z: number } {
+  const cum = cumulativeOf(path);
+  let i = 0;
+  while (i < path.length - 2 && cum[i + 1] < s) i++;
+  const len = cum[i + 1] - cum[i] || 1;
+  const u = Math.max(0, Math.min(1, (s - cum[i]) / len));
+  return { x: path[i].x + (path[i + 1].x - path[i].x) * u, z: path[i].z + (path[i + 1].z - path[i].z) * u };
 }
 
 export function spawnTrooper(sim: Simulation, team: TeamId, lane: LaneId, type: string, slot: number): Trooper | null {
@@ -137,22 +201,38 @@ export function updateTroopers(sim: Simulation, dt: number): void {
         // Chase, but stay near the lane.
         mx = dx / (d || 1);
         mz = dz / (d || 1);
-        if (!inRange && distXZ(t.pos, t.path[Math.min(t.pathIndex, t.path.length - 1)]) > 40) t.targetId = -1;
+        if (!inRange && projectOnLane(t, false).off > LANE_LEASH) t.targetId = -1;
         if (inRange && !los) {
           // Side-step to find a line of sight.
           mx += -dz / (d || 1) * 0.6;
           mz += dx / (d || 1) * 0.6;
         }
       }
-    } else if (t.pathIndex < t.path.length) {
-      const wp = t.path[t.pathIndex];
-      const dx = wp.x - t.pos.x;
-      const dz = wp.z - t.pos.z;
-      const d = Math.hypot(dx, dz);
-      if (d < 3.5) t.pathIndex++;
-      mx = dx / (d || 1);
-      mz = dz / (d || 1);
-      t.yaw = Math.atan2(dx, dz);
+    } else {
+      // Follow the lane: project onto it and steer a few metres ahead. Pushed
+      // far off the lane (knockback, crowding), re-find the nearest segment.
+      let p = projectOnLane(t, false);
+      if (p.off > LANE_LEASH) p = projectOnLane(t, true);
+      t.pathIndex = p.seg + 1;
+      t.progress = p.s;
+      const cum = cumulativeOf(t.path);
+      const end = cum[cum.length - 1];
+      if (p.s < end - 0.5) {
+        const aim = pointOnLane(t.path, Math.min(end, p.s + LOOKAHEAD));
+        const dx = aim.x - t.pos.x;
+        const dz = aim.z - t.pos.z;
+        const d = Math.hypot(dx, dz);
+        mx = dx / (d || 1);
+        mz = dz / (d || 1);
+        t.yaw = Math.atan2(dx, dz);
+      }
+    }
+    if (sim.time < t.detourUntil) {
+      mx = mx * 0.4 + t.detourX;
+      mz = mz * 0.4 + t.detourZ;
+      const l = Math.hypot(mx, mz) || 1;
+      mx /= l;
+      mz /= l;
     }
 
     // Medic heals the most injured nearby ally trooper.
@@ -200,14 +280,19 @@ export function updateTroopers(sim: Simulation, dt: number): void {
     sim.resolveStructureCollision(t);
     t.pos.y = world.groundHeight(t.pos.x, t.pos.z, t.pos.y + 0.6);
 
-    // Stuck detection: skip ahead / nudge if no progress.
+    // Stuck detection: drop the target and side-step for a moment. Never skip
+    // lane waypoints, which would send the trooper straight through the city.
     if (sim.time >= t.progressCheck) {
       const moved = Math.hypot(t.pos.x - t.progressPos.x, t.pos.z - t.progressPos.z);
       if (moved < 0.8 && (mx !== 0 || mz !== 0)) {
         t.stuckTime += 2;
-        if (t.stuckTime >= 6) {
+        if (t.stuckTime >= 4) {
           t.targetId = -1;
-          if (t.pathIndex < t.path.length - 1) t.pathIndex++;
+          const side = sim.rng.next() < 0.5 ? -1 : 1;
+          const l = Math.hypot(mx, mz) || 1;
+          t.detourX = (-mz / l) * side;
+          t.detourZ = (mx / l) * side;
+          t.detourUntil = sim.time + 1.5;
           t.stuckTime = 0;
         }
       } else t.stuckTime = 0;
