@@ -38,6 +38,8 @@ export function updateHero(sim: Simulation, hero: Hero, dt: number): void {
         if (upgradeAbility(hero, a.slot)) sim.events.push({ t: 'cast', unit: hero.id, ability: 'upgrade', slot: a.slot, pos: { ...hero.pos }, dir: { x: 0, y: 1, z: 0 } });
       } else if (a.type === 'ping') sim.addPing(hero, a.kind, a.x, a.z, a.targetId, a.lane);
     }
+    // Purchases take effect immediately.
+    if (acts.some((a) => a.type === 'buy' || a.type === 'sell')) applyHeroStats(hero, deriveHeroStats(hero, sim.teamBuffMods(hero.team0)));
   }
 
   const disarmed = (hero.flags & SF.DISARM) !== 0;

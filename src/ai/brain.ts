@@ -76,6 +76,7 @@ export class BotBrain {
   private strafeDir = 1;
   private strafeUntil = 0;
   private jumpCooldown = 0;
+  private steadyUntil = 0;
   private meleeHoldUntil = 0;
   private fireToggle = false;
   private lastHp = 0;
@@ -491,6 +492,12 @@ export class BotBrain {
     const nx = dx / d;
     const nz = dz / d;
     const pref = t.kind === 'hero' ? h.def.ai.preferredRange : Math.max(6, h.def.ai.preferredRange * 0.8);
+    // Precision weapons punish moving: skilled bots plant their feet to shoot.
+    const w = h.def.weapon;
+    if (w.spreadMoving > w.spread * 2.5 && d > 10 && sim.time >= h.weapon.nextFire - 0.15 && this.aim.error < 0.06) {
+      if (sim.time > this.steadyUntil && this.rng.next() < 0.35 + this.diff.movementTech * 0.6) this.steadyUntil = sim.time + 0.35;
+    }
+    if (sim.time < this.steadyUntil) return { x: 0, z: 0 };
     // Stay near the strategic anchor when farming.
     if ((this.goal?.kind === 'farm' || this.goal?.kind === 'push') && this.dest && distXZ(h.pos, this.dest) > 22) return null;
     let along = 0;

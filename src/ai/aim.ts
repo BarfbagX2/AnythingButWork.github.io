@@ -19,16 +19,31 @@ export class AimController {
   private reactUntil = 0;
   private errX = 0;
   private errY = 0;
-  private errVX = 0;
-  private errVY = 0;
   private flick = 0;
-  /** Angular error (rad) between current aim and the ideal direction. */
+  /** Previous ideal direction, for estimating the target's angular velocity. */
+  private lastIdealYaw = 0;
+  private lastIdealPitch = 0;
+  private haveIdeal = false;
+  private ffYaw = 0;
+  private ffPitch = 0;
+  /** True angular error (rad) between current aim and the ideal direction (debug). */
+  trueError = Math.PI;
+  /**
+   * Error the bot *believes* it has: distance to its own (noisy) estimate of
+   * where to aim. Trigger decisions use this, so aim noise produces genuine
+   * misses instead of the bot waiting for its noise to cross zero.
+   */
   error = Math.PI;
 
   constructor(
     private readonly diff: DifficultyProfile,
     private readonly rnd: () => number,
   ) {}
+
+  private gauss(): number {
+    // Sum of uniforms: mean 0, std 1 (close enough to normal here).
+    return (this.rnd() + this.rnd() + this.rnd() + this.rnd() - 2) * 1.7320508;
+  }
 
   reset(yaw: number, pitch: number): void {
     this.yaw = yaw;
@@ -69,23 +84,28 @@ export class AimController {
     const d = this.diff;
     if (key !== this.targetKey) {
       this.targetKey = key;
+      this.haveIdeal = false;
       if (key >= 0) {
         this.reactUntil = now + d.reaction * (0.75 + this.rnd() * 0.5);
         this.flick = 1;
       }
     }
-    // Error random walk (Ornstein–Uhlenbeck style), metres at the target.
-    const sigma = d.aimError * (1 + Math.min(1.5, targetSpeed / 6)) * (1 + this.flick * 1.2);
-    const k = 3.5;
-    this.errVX += (-this.errX * k * k - this.errVX * 2 * k) * dt + (this.rnd() - 0.5) * sigma * 18 * dt;
-    this.errVY += (-this.errY * k * k - this.errVY * 2 * k) * dt + (this.rnd() - 0.5) * sigma * 10 * dt;
-    this.errX += this.errVX * dt;
-    this.errY += this.errVY * dt;
+    // Aim error: an Ornstein–Uhlenbeck process in metres at the target whose
+    // stationary std is sigma (correlation time ~0.4 s). Error grows with
+    // target speed and distance (human precision is angular) and spikes
+    // briefly after a flick to a new target.
+    const range = point ? Math.hypot(point.x - eye.x, point.z - eye.z) : 20;
+    const sigma = d.aimError * (1 + Math.min(1.2, targetSpeed / 10)) * (0.6 + range / 30) * (1 + this.flick * 1.5);
+    const theta = 2.5;
+    const kick = sigma * Math.sqrt(2 * theta * dt);
+    this.errX += -this.errX * theta * dt + kick * this.gauss();
+    this.errY += -this.errY * theta * dt + kick * 0.6 * this.gauss();
     this.flick = Math.max(0, this.flick - dt * 2.5);
     if (!point || now < this.reactUntil) {
       this.yawVel *= Math.exp(-6 * dt);
       this.pitchVel *= Math.exp(-6 * dt);
       this.error = Math.PI;
+      this.trueError = Math.PI;
       return;
     }
     const dx = point.x - eye.x;
@@ -96,19 +116,38 @@ export class AimController {
     const desiredPitch = Math.atan2(point.y - eye.y, dist) + this.errY / dist;
     const ey = angleDiff(desiredYaw, this.yaw);
     const ep = desiredPitch - this.pitch;
+    // Target angular velocity (feed-forward): humans track by matching the
+    // target's motion, so the spring damps relative to it. Skill scales how
+    // well the motion is matched; without it a spring lags moving targets.
+    const idealYaw = Math.atan2(dx, dz);
+    const idealPitch = Math.atan2(point.y - eye.y, dist);
+    if (this.haveIdeal && dt > 0) {
+      // Perceived angular velocity lags reality by roughly a reaction time,
+      // so sudden direction changes ("jukes") cause plausible misses.
+      const k = 1 - Math.exp(-dt / Math.max(0.05, d.reaction * 0.8));
+      this.ffYaw += ((angleDiff(idealYaw, this.lastIdealYaw) / dt) * d.prediction - this.ffYaw) * k;
+      this.ffPitch += (((idealPitch - this.lastIdealPitch) / dt) * d.prediction - this.ffPitch) * k;
+    } else {
+      this.ffYaw = 0;
+      this.ffPitch = 0;
+    }
+    const ffYaw = this.ffYaw;
+    const ffPitch = this.ffPitch;
+    this.lastIdealYaw = idealYaw;
+    this.lastIdealPitch = idealPitch;
+    this.haveIdeal = true;
     // Critically damped spring with a turn-rate cap.
     const w = 14;
-    this.yawVel += (ey * w * w - this.yawVel * 2 * w) * dt;
-    this.pitchVel += (ep * w * w - this.pitchVel * 2 * w) * dt;
+    this.yawVel += (ey * w * w - (this.yawVel - ffYaw) * 2 * w) * dt;
+    this.pitchVel += (ep * w * w - (this.pitchVel - ffPitch) * 2 * w) * dt;
     const cap = d.turnRate;
     this.yawVel = Math.max(-cap, Math.min(cap, this.yawVel));
     this.pitchVel = Math.max(-cap, Math.min(cap, this.pitchVel));
     this.yaw += this.yawVel * dt;
     this.pitch += this.pitchVel * dt;
     this.pitch = Math.max(-1.4, Math.min(1.4, this.pitch));
-    const trueYaw = Math.atan2(dx, dz);
-    const truePitch = Math.atan2(point.y - eye.y, dist);
-    this.error = Math.hypot(angleDiff(trueYaw, this.yaw), truePitch - this.pitch);
+    this.trueError = Math.hypot(angleDiff(idealYaw, this.yaw), idealPitch - this.pitch);
+    this.error = Math.hypot(angleDiff(desiredYaw, this.yaw), desiredPitch - this.pitch);
   }
 
   /** Snap-free look toward a direction when not engaging (walking). */
@@ -120,5 +159,6 @@ export class AimController {
     this.yawVel = 0;
     this.pitchVel = 0;
     this.error = Math.PI;
+    this.trueError = Math.PI;
   }
 }

@@ -40,10 +40,10 @@ export interface DifficultyProfile {
 }
 
 export const DIFFICULTY: Record<Difficulty, DifficultyProfile> = {
-  easy: { reaction: 0.6, aimError: 1.05, turnRate: 3.2, prediction: 0.25, decisionInterval: 1.5, decisionNoise: 0.28, coordination: 0.3, abilityTiming: 0.35, lastHit: 0.25, dodge: 0.15, retreatSense: -0.05, perceptionInterval: 0.3, fov: 110, towerSense: 0.35, shopping: 0.6, movementTech: 0.05 },
-  normal: { reaction: 0.38, aimError: 0.62, turnRate: 6, prediction: 0.6, decisionInterval: 1.0, decisionNoise: 0.14, coordination: 0.6, abilityTiming: 0.6, lastHit: 0.55, dodge: 0.4, retreatSense: 0.05, perceptionInterval: 0.18, fov: 140, towerSense: 0.7, shopping: 0.85, movementTech: 0.3 },
-  hard: { reaction: 0.24, aimError: 0.38, turnRate: 10, prediction: 0.85, decisionInterval: 0.75, decisionNoise: 0.07, coordination: 0.85, abilityTiming: 0.82, lastHit: 0.8, dodge: 0.65, retreatSense: 0.1, perceptionInterval: 0.12, fov: 160, towerSense: 0.9, shopping: 0.95, movementTech: 0.6 },
-  expert: { reaction: 0.15, aimError: 0.22, turnRate: 16, prediction: 1.0, decisionInterval: 0.5, decisionNoise: 0.025, coordination: 1.0, abilityTiming: 0.95, lastHit: 0.95, dodge: 0.85, retreatSense: 0.14, perceptionInterval: 0.08, fov: 180, towerSense: 1.0, shopping: 1.0, movementTech: 0.85 },
+  easy: { reaction: 0.6, aimError: 0.85, turnRate: 3.2, prediction: 0.25, decisionInterval: 1.5, decisionNoise: 0.28, coordination: 0.3, abilityTiming: 0.35, lastHit: 0.25, dodge: 0.15, retreatSense: -0.05, perceptionInterval: 0.3, fov: 110, towerSense: 0.35, shopping: 0.6, movementTech: 0.05 },
+  normal: { reaction: 0.38, aimError: 0.55, turnRate: 6, prediction: 0.6, decisionInterval: 1.0, decisionNoise: 0.14, coordination: 0.6, abilityTiming: 0.6, lastHit: 0.55, dodge: 0.4, retreatSense: 0.05, perceptionInterval: 0.18, fov: 140, towerSense: 0.7, shopping: 0.85, movementTech: 0.3 },
+  hard: { reaction: 0.26, aimError: 0.36, turnRate: 10, prediction: 0.85, decisionInterval: 0.75, decisionNoise: 0.07, coordination: 0.85, abilityTiming: 0.82, lastHit: 0.8, dodge: 0.65, retreatSense: 0.1, perceptionInterval: 0.12, fov: 160, towerSense: 0.9, shopping: 0.95, movementTech: 0.6 },
+  expert: { reaction: 0.18, aimError: 0.24, turnRate: 16, prediction: 1.0, decisionInterval: 0.5, decisionNoise: 0.025, coordination: 1.0, abilityTiming: 0.95, lastHit: 0.95, dodge: 0.85, retreatSense: 0.14, perceptionInterval: 0.08, fov: 180, towerSense: 1.0, shopping: 1.0, movementTech: 0.85 },
 };
 
 /**

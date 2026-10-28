@@ -19,7 +19,8 @@ export function spawnTrooper(sim: Simulation, team: TeamId, lane: LaneId, type: 
   if (!def) throw new Error(`Unknown trooper type ${type}`);
   const path = lanePathFor(sim, lane, team);
   // Spawn at the base gate waypoint with a lateral offset per slot.
-  const startIdx = lane === 1 ? 1 : 2;
+  // Spawn at the base gate: side lanes have an extra in-base waypoint.
+  const startIdx = Math.max(0, Math.min(lane === 1 ? 1 : 2, path.length - 2));
   const a = path[startIdx];
   const b = path[startIdx + 1];
   const dx = b.x - a.x;

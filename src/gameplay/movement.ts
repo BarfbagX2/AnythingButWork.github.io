@@ -156,7 +156,8 @@ export function updateHeroMovement(sim: Simulation, hero: Hero, dt: number, move
         const recentlyGrounded = hero.grounded || sim.time - hero.lastGroundTime < 0.1;
         if (recentlyGrounded && vel.y <= 0.5) {
           // Dash-jump: jumping right out of a dash.
-          if (sim.time - hero.dashEnd < 0.12 && sim.time - hero.dashEnd > -M.dashDuration && spendStamina(hero, M.staminaCostDashJump - M.staminaCostDash)) {
+          // (dashEnd starts at 0, so require that a dash actually happened.)
+          if (hero.dashEnd > 0 && sim.time - hero.dashEnd < 0.12 && sim.time - hero.dashEnd > -M.dashDuration && spendStamina(hero, M.staminaCostDashJump - M.staminaCostDash)) {
             vel.x = hero.dashVel.x * M.dashJumpBoost * 0.75;
             vel.z = hero.dashVel.z * M.dashJumpBoost * 0.75;
             hero.dashEnd = 0;

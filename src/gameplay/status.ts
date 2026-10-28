@@ -90,6 +90,14 @@ export function updateStatuses(sim: Simulation, u: Unit, dt: number): void {
   for (let i = u.statuses.length - 1; i >= 0; i--) {
     const s = u.statuses[i];
     const expired = sim.time >= s.endTime || (s.spec.shield !== undefined && s.spec.shield > 0 && s.shieldLeft <= 0 && !s.spec.mods && !s.spec.flags);
+    if (expired && u.alive && sim.time >= s.endTime && (s.spec.dps || s.spec.hps)) {
+      // Apply the final partial interval so a DoT deals its full total.
+      const rest = s.dotAccum + dt;
+      if (rest > 1e-6) {
+        if (s.spec.dps) sim.dealDamage(u as AnyUnit, { sourceId: s.sourceId, amount: s.spec.dps * rest * s.stacks, type: s.spec.dotType ?? 'spirit', abilityId: s.abilityId, isDot: true });
+        if (s.spec.hps && u.alive) sim.heal(u, s.spec.hps * rest * s.stacks, s.sourceId);
+      }
+    }
     if (expired || !u.alive) {
       u.statuses.splice(i, 1);
       sim.events.push({ t: 'status', unit: u.id, id: s.spec.id, on: false });
