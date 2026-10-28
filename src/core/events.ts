@@ -19,7 +19,7 @@ export type SimEvent =
   | { t: 'orbSpawn'; orb: number; pos: Vec3 }
   | { t: 'orbTaken'; orb: number; hero: number; denied: boolean }
   | { t: 'structure'; id: number; key: string; state: 'vulnerable' | 'destroyed' | 'phase2' }
-  | { t: 'announce'; text: string; team: number; kind: 'objective' | 'kill' | 'info' | 'boss' | 'warning' }
+  | { t: 'announce'; text: string; team: number; kind: 'objective' | 'kill' | 'info' | 'boss' | 'warning'; unit?: number }
   | { t: 'respawn'; unit: number }
   | { t: 'level'; unit: number; level: number }
   | { t: 'buy'; unit: number; item: string; sold?: boolean }

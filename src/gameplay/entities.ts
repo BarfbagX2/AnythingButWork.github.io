@@ -227,8 +227,9 @@ export class Hero extends Unit {
     id: number,
     team: TeamId,
     public readonly def: HeroDef,
-    public readonly playerName: string,
-    public readonly isBot: boolean,
+    /** Mutable: a network player can take over (and later return) a bot's hero. */
+    public playerName: string,
+    public isBot: boolean,
   ) {
     super(id, team);
     this.radius = 0.45;

@@ -1,7 +1,7 @@
 import type { MatchSummary } from './GameView';
 import { formatSouls, formatTime } from './text';
 
-export function Results({ summary, onRematch, onMenu }: { summary: MatchSummary; onRematch: () => void; onMenu: () => void }) {
+export function Results({ summary, onRematch, onMenu, note }: { summary: MatchSummary; onRematch?: () => void; onMenu: () => void; note?: string }) {
   const spect = summary.localTeam < 0;
   const won = summary.winner === summary.localTeam;
   const title = summary.winner < 0 ? 'MATCH ENDED' : spect ? `${summary.winner === 0 ? 'AMBER' : 'AZURE'} WINS` : won ? 'VICTORY' : 'DEFEAT';
@@ -72,10 +72,13 @@ export function Results({ summary, onRematch, onMenu }: { summary: MatchSummary;
           ))}
         </table>
       </div>
+      {note && <div style={{ color: 'var(--text-dim)', marginTop: 16 }}>{note}</div>}
       <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-        <button className="btn primary" onClick={onRematch} data-testid="rematch">
-          Rematch
-        </button>
+        {onRematch && (
+          <button className="btn primary" onClick={onRematch} data-testid="rematch">
+            Rematch
+          </button>
+        )}
         <button className="btn" onClick={onMenu} data-testid="menu">
           Main menu
         </button>

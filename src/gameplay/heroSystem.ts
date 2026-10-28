@@ -54,7 +54,7 @@ export function updateHero(sim: Simulation, hero: Hero, dt: number): void {
     for (let i = 0; i < 4; i++) {
       if (pressed(hero, ABILITY_BTNS[i])) {
         const fail = tryCastAbility(sim, hero, i + 1);
-        if (fail && !hero.isBot) sim.events.push({ t: 'announce', text: failText(fail), team: -1, kind: 'warning' });
+        if (fail && !hero.isBot) sim.events.push({ t: 'announce', text: failText(fail), team: -1, kind: 'warning', unit: hero.id });
       }
     }
     for (let i = 0; i < 4; i++) if (pressed(hero, ITEM_BTNS[i])) sim.items.activate(hero, i);

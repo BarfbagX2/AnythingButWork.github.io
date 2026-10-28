@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SimEvent } from '../core/events';
 import type { PingKind } from '../core/input';
 import type { MatchConfig } from '../core/simulation';
-import { GameSession } from '../game/session';
+import { GameSession, type RemoteLink } from '../game/session';
 import type { Settings } from '../game/settings';
 import type { UiKeyAction } from '../game/input';
 import { DebugOverlay } from './DebugOverlay';
@@ -44,6 +44,8 @@ interface Props {
   onSettings: (s: Settings) => void;
   onQuit: () => void;
   onEnd: (s: MatchSummary) => void;
+  /** Online play: render the server's match instead of running one locally. */
+  remote?: RemoteLink;
 }
 
 export function summarize(session: GameSession): MatchSummary {
@@ -73,7 +75,7 @@ export function summarize(session: GameSession): MatchSummary {
   };
 }
 
-export function GameView({ config, localSlot, settings, onSettings, onQuit, onEnd }: Props) {
+export function GameView({ config, localSlot, settings, onSettings, onQuit, onEnd, remote }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fbRef = useRef<HTMLDivElement>(null);
   const [session, setSession] = useState<GameSession | null>(null);
@@ -100,7 +102,7 @@ export function GameView({ config, localSlot, settings, onSettings, onQuit, onEn
         onMatchEnd: () => {
           window.setTimeout(() => onEnd(summarize(s)), 6000);
         },
-      });
+      }, remote ?? null);
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : String(err));

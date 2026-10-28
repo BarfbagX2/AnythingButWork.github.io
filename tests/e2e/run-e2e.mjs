@@ -21,7 +21,15 @@ let server = null;
 let url = process.env.E2E_URL;
 if (!url) {
   url = 'http://localhost:5174/';
-  server = spawn('npx', ['vite', '--port', '5174', '--strictPort'], { stdio: 'pipe' });
+  // Own process group, so stopping it also stops the node process under npx.
+  server = spawn('npx', ['vite', '--port', '5174', '--strictPort'], { stdio: 'pipe', detached: true });
+  process.on('exit', () => {
+    try {
+      process.kill(-server.pid, 'SIGTERM');
+    } catch {
+      // Already exited.
+    }
+  });
   await new Promise((resolve, reject) => {
     const t = setTimeout(() => reject(new Error('dev server did not start')), 30000);
     server.stdout.on('data', (d) => {
@@ -261,7 +269,6 @@ try {
 }
 check('no uncaught page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 await browser.close();
-server?.kill();
 const failed = results.filter((r) => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
 process.exit(failed.length ? 1 : 0);

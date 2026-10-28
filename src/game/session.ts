@@ -6,6 +6,8 @@ import { Simulation, type MatchConfig } from '../core/simulation';
 import type { Hero } from '../gameplay/entities';
 import { GameRenderer } from '../rendering/renderer';
 import { BotManager } from '../ai/botManager';
+import type { NetClient, Welcome } from '../network/client';
+import { applySnapshot, extrapolateProjectiles } from '../network/snapshot';
 import { InputManager, type UiKeyAction } from './input';
 import type { Settings } from './settings';
 
@@ -13,6 +15,12 @@ export interface SessionCallbacks {
   onEvent?: (e: SimEvent) => void;
   onUiKey?: (a: UiKeyAction) => void;
   onMatchEnd?: (winner: number) => void;
+}
+
+/** Online play: the server owns the simulation; this client mirrors it. */
+export interface RemoteLink {
+  net: NetClient;
+  welcome: Welcome;
 }
 
 export interface FrameStats {
@@ -26,6 +34,10 @@ export interface FrameStats {
  * Owns one match on the client: simulation, renderer, input, bots and the
  * real-time loop. The simulation advances in fixed 60 Hz steps; rendering
  * interpolates between the last two steps.
+ *
+ * With a `RemoteLink` the session is an online client instead: the local
+ * simulation is a non-stepping mirror filled from server snapshots, and the
+ * player's input and actions are sent to the server every tick.
  */
 export class GameSession {
   readonly sim: Simulation;
@@ -50,6 +62,8 @@ export class GameSession {
   private zoom = false;
   private ended = false;
   private listeners = new Set<(e: SimEvent) => void>();
+  private snapshotAt = 0;
+  private snapshotInterval = 50;
 
   constructor(
     readonly canvas: HTMLCanvasElement,
@@ -57,11 +71,26 @@ export class GameSession {
     localSlot: number,
     private settings: Settings,
     private readonly cb: SessionCallbacks = {},
+    readonly remote: RemoteLink | null = null,
   ) {
-    this.sim = new Simulation(config);
-    this.local = localSlot >= 0 ? (this.sim.heroes[localSlot] ?? null) : null;
+    this.sim = new Simulation(remote ? remote.welcome.config : config);
     this.bots = new BotManager(this.sim);
-    this.sim.controllers.push((s) => this.bots.update(s));
+    if (remote) {
+      const ids = this.sim.heroes.map((h) => h.id).join(',');
+      if (ids !== remote.welcome.heroIds.join(',')) throw new Error('Client and server disagree on the match setup (protocol mismatch?)');
+      const h = this.sim.units.get(remote.welcome.heroUnitId);
+      this.local = h && h.kind === 'hero' ? h : null;
+      this.snapshotInterval = 1000 / remote.welcome.snapshotRate;
+      remote.net.onSnapshot = (snap, matchId) => {
+        if (matchId !== remote.welcome.matchId) return;
+        applySnapshot(this.sim, snap, this.local ? this.local.id : -1);
+        this.snapshotAt = performance.now();
+        this.handleEvents(snap.events);
+      };
+    } else {
+      this.local = localSlot >= 0 ? (this.sim.heroes[localSlot] ?? null) : null;
+      this.sim.controllers.push((s) => this.bots.update(s));
+    }
     this.renderer = new GameRenderer(canvas, this.sim, settings.quality);
     this.renderer.cam.baseFov = settings.fov;
     this.input = new InputManager(canvas, settings);
@@ -116,7 +145,8 @@ export class GameSession {
   }
 
   queueAction(a: PlayerAction): void {
-    this.actions.push(a);
+    if (this.remote) this.remote.net.sendAction(a);
+    else this.actions.push(a);
   }
 
   /** The hero the camera is attached to. */
@@ -275,7 +305,18 @@ export class GameSession {
     const simDt = this.sim.dt;
     let ticks = 0;
     const t0 = performance.now();
-    if (!this.paused) {
+    if (this.remote) {
+      // Online: send one input per tick; the server never pauses.
+      this.acc += dt;
+      while (this.acc >= simDt && ticks < 6) {
+        this.sampleLocalInput();
+        if (this.local) this.remote.net.sendInput(this.local.input);
+        this.acc -= simDt;
+        ticks++;
+      }
+      if (ticks === 6) this.acc = 0;
+      extrapolateProjectiles(this.sim, dt);
+    } else if (!this.paused) {
       this.acc += dt * this.timeScale;
       while (this.acc >= simDt && ticks < 6) {
         this.sampleLocalInput();
@@ -288,7 +329,7 @@ export class GameSession {
     }
     this.frameStats.simMs = performance.now() - t0;
     this.frameStats.ticksPerFrame = ticks;
-    const alpha = this.paused ? 1 : Math.min(1, this.acc / simDt);
+    const alpha = this.remote ? Math.min(1, (now - this.snapshotAt) / this.snapshotInterval) : this.paused ? 1 : Math.min(1, this.acc / simDt);
     const view = this.viewHero();
     if (view && view !== this.local && !this.renderer.cam.freeCam) {
       // Spectating: follow the hero's aim.
@@ -302,6 +343,7 @@ export class GameSession {
 
   dispose(): void {
     this.stop();
+    if (this.remote) this.remote.net.onSnapshot = () => {};
     window.removeEventListener('resize', this.resize);
     this.input.dispose();
     this.renderer.dispose();

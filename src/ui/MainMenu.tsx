@@ -4,6 +4,7 @@ import type { GameMode } from '../game/matchSetup';
 
 interface Props {
   onPlay: (mode: GameMode) => void;
+  onOnline: () => void;
   onSettings: () => void;
 }
 
@@ -42,7 +43,7 @@ function Emblem() {
   );
 }
 
-export function MainMenu({ onPlay, onSettings }: Props) {
+export function MainMenu({ onPlay, onOnline, onSettings }: Props) {
   const [panel, setPanel] = useState<'none' | 'controls' | 'credits'>('none');
   return (
     <div className="screen menu">
@@ -58,6 +59,9 @@ export function MainMenu({ onPlay, onSettings }: Props) {
         </button>
         <button className="btn" data-testid="spectate" onClick={() => onPlay('spectate')}>
           Watch bots play
+        </button>
+        <button className="btn" data-testid="online-menu" onClick={onOnline}>
+          Online — join a server
         </button>
         <button className="btn" onClick={onSettings}>
           Settings
@@ -113,7 +117,7 @@ export function MainMenu({ onPlay, onSettings }: Props) {
         </div>
       )}
       <div className="menu-foot">
-        <span>v0.1 · single-player vs. bots · multiplayer server: see README</span>
+        <span>v0.1 · bot matches offline · online via the match server (npm run server)</span>
         <span>Press Esc in-game to pause</span>
       </div>
     </div>

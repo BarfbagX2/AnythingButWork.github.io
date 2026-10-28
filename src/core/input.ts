@@ -67,3 +67,35 @@ export function sanitizeInput(cmd: InputCommand): InputCommand {
     buttons: (cmd.buttons | 0) & 0x1ffff,
   };
 }
+
+const PING_KINDS: readonly PingKind[] = ['attack', 'defend', 'group', 'retreat', 'focus', 'push', 'danger'];
+
+/** Validates an untrusted action (e.g. from a network client). Returns null if malformed. */
+export function sanitizeAction(a: unknown): PlayerAction | null {
+  if (!a || typeof a !== 'object') return null;
+  const o = a as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === 'string' && v.length > 0 && v.length <= 64 ? v : null);
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  switch (o.type) {
+    case 'buy':
+    case 'sell': {
+      const itemId = str(o.itemId);
+      return itemId ? { type: o.type, itemId } : null;
+    }
+    case 'upgradeAbility': {
+      const slot = num(o.slot);
+      return slot === 1 || slot === 2 || slot === 3 || slot === 4 ? { type: 'upgradeAbility', slot } : null;
+    }
+    case 'ping': {
+      const kind = PING_KINDS.find((k) => k === o.kind);
+      const x = num(o.x);
+      const z = num(o.z);
+      if (!kind || x === null || z === null) return null;
+      const targetId = num(o.targetId);
+      const lane = num(o.lane);
+      return { type: 'ping', kind, x, z, ...(targetId !== null ? { targetId } : {}), ...(lane !== null ? { lane } : {}) };
+    }
+    default:
+      return null;
+  }
+}

@@ -15,7 +15,7 @@ interface Props {
 
 const DIFFS: Difficulty[] = ['easy', 'normal', 'hard', 'expert'];
 
-function Seg<T extends string | number>({ value, options, onChange, labels }: { value: T; options: T[]; onChange: (v: T) => void; labels?: Record<string, string> }) {
+export function Seg<T extends string | number>({ value, options, onChange, labels }: { value: T; options: T[]; onChange: (v: T) => void; labels?: Record<string, string> }) {
   return (
     <div className="seg">
       {options.map((o) => (

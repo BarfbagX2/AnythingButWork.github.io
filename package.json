@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "sim": "tsx tools/simulate-match.ts",
     "server": "tsx server/index.ts",
-    "e2e": "node tests/e2e/run-e2e.mjs"
+    "e2e": "node tests/e2e/run-e2e.mjs",
+    "e2e:online": "node tests/e2e/run-online-e2e.mjs"
   },
   "dependencies": {
     "react": "^19.3.1",

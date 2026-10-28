@@ -70,7 +70,7 @@ export function Hud({ session, settings }: { session: GameSession; settings: Set
         setFeed((f) => [...f.filter((x) => x.until > now).slice(-5), entry]);
       } else if (e.t === 'announce') {
         if (e.kind === 'warning') {
-          if (e.team === -1) setToast({ text: e.text, until: now + 1400 });
+          if (e.team === -1 && (e.unit === undefined || e.unit === local?.id)) setToast({ text: e.text, until: now + 1400 });
         } else if (e.team === -1 || (local && e.team === local.team) || !local) setAnnounce({ text: e.text, until: now + 4000 });
       } else if (e.t === 'botSay') {
         if (local && e.team !== local.team) return;
