@@ -151,6 +151,25 @@ export class Effects {
     this.group.add(this.glows);
   }
 
+  /**
+   * Pre-creates pooled decals/spheres (so their materials exist) and returns
+   * a throwaway group exercising every effect material for shader warm-up.
+   */
+  prewarm(): THREE.Group {
+    const g = new THREE.Group();
+    for (let i = 0; i < 6; i++) {
+      const ring = this.getDecal('warn');
+      const sphere = this.getDecal('sphere');
+      for (const d of [ring, sphere]) {
+        d.mesh.visible = false;
+        this.decals.splice(this.decals.indexOf(d), 1);
+        this.decalPool.push(d);
+      }
+    }
+    for (const d of this.decalPool) g.add(d.mesh.clone());
+    return g;
+  }
+
   // --- Particles -----------------------------------------------------------------
 
   emit(x: number, y: number, z: number, count: number, color: string | THREE.Color, o: { speed?: number; size?: number; life?: number; up?: number; grav?: number; spread?: number; drag?: number; dir?: THREE.Vector3 } = {}): void {

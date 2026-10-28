@@ -315,7 +315,7 @@ function WeaponPanel({ hero: h, session, settings }: { hero: Hero; session: Game
   const itemKeys = [settings.bindings.item1, settings.bindings.item2, settings.bindings.item3, settings.bindings.item4];
   const free = t < h.freeAmmoUntil;
   return (
-    <div className="weapon" data-testid="weapon">
+    <div className="weapon-panel" data-testid="weapon">
       <div className="item-bar">
         {h.items.map((it) => {
           const ai = actives.indexOf(it);

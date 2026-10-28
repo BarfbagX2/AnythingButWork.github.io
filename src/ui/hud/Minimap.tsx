@@ -23,13 +23,16 @@ export function Minimap({ session, size = W }: { session: GameSession; size?: nu
     c.height = H * 2;
     c.style.width = `${size}px`;
     c.style.height = `${H}px`;
-    const ctx = c.getContext('2d')!;
+    // CPU-backed canvases: the minimap is small and redrawn several times a
+    // second; an accelerated canvas would throttle on (and stall behind) the GPU
+    // work of the 3D view.
+    const ctx = c.getContext('2d', { willReadFrequently: true })!;
     ctx.scale(2, 2);
     // Static background (buildings + streets) rendered once.
     const bg = document.createElement('canvas');
     bg.width = size * 2;
     bg.height = H * 2;
-    const bctx = bg.getContext('2d')!;
+    const bctx = bg.getContext('2d', { willReadFrequently: true })!;
     bctx.scale(2, 2);
     const viewTeam = session.local ? session.local.team : 0;
     const flip = viewTeam === 1;

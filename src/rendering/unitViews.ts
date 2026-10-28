@@ -61,7 +61,9 @@ export class Nameplate {
     this.canvas = document.createElement('canvas');
     this.canvas.width = width;
     this.canvas.height = height;
-    this.ctx = this.canvas.getContext('2d')!;
+    // CPU-backed canvas: it is redrawn and re-uploaded as a texture often, and an
+    // accelerated canvas would force a synchronous GPU readback on every upload.
+    this.ctx = this.canvas.getContext('2d', { willReadFrequently: true })!;
     this.tex = new THREE.CanvasTexture(this.canvas);
     this.tex.colorSpace = THREE.SRGBColorSpace;
     const mat = new THREE.SpriteMaterial({ map: this.tex, depthWrite: false, transparent: true, sizeAttenuation: true });

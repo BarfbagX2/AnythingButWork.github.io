@@ -149,6 +149,12 @@ export class GameSession {
     this.zoom = s.zoom;
     if (!h) return;
     const cam = this.renderer.cam;
+    // Discrete actions (purchases, ability points, pings) are delivered even
+    // while a menu such as the shop blocks movement and firing.
+    if (this.actions.length) {
+      h.actions.push(...this.actions);
+      this.actions = [];
+    }
     if (this.paused || this.uiBlocking) {
       h.input = sanitizeInput({ moveX: 0, moveZ: 0, yaw: h.input.yaw, pitch: h.input.pitch, buttons: 0 });
       return;
@@ -170,10 +176,6 @@ export class GameSession {
       pitch = cam.pitch;
     }
     h.input = sanitizeInput({ moveX: mx, moveZ: mz, yaw, pitch, buttons: s.buttons });
-    if (this.actions.length) {
-      h.actions.push(...this.actions);
-      this.actions = [];
-    }
   }
 
   private handleEvents(events: SimEvent[]): void {

@@ -5,7 +5,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import type { SimEvent } from '../core/events';
 import type { Simulation } from '../core/simulation';
-import type { Hero } from '../gameplay/entities';
+import { Neutral, Summon, type Hero } from '../gameplay/entities';
+import { NEUTRALS } from '../../data/units';
 import { ThirdPersonCamera } from './camera';
 import { Effects } from './effects';
 import { TrooperView } from './trooperView';
@@ -148,6 +149,36 @@ export class GameRenderer {
       this.scene.add(v.group);
     }
     this.setupComposer();
+    this.warmup();
+  }
+
+  /**
+   * Compiles every shader the match can need up front. Summons, creatures and
+   * pooled effects are created lazily during play; without this their first
+   * appearance would stall the frame while the GPU driver compiles programs.
+   */
+  private warmup(): void {
+    const g = new THREE.Group();
+    for (const visual of ['thrall', 'boneward', 'sentry']) {
+      const s = new Summon(-1, 0, -1, visual === 'thrall' ? 'thrall' : 'turret', 0, 0, 0, 1, 0, visual);
+      g.add(new SummonView(s, this.shadowsOn).group);
+    }
+    for (const id of Object.keys(NEUTRALS)) {
+      const n = new Neutral(-1, NEUTRALS[id], 'warmup', id === 'midboss');
+      g.add(new CreatureView(n, this.shadowsOn).group);
+    }
+    g.add(this.effects.prewarm());
+    try {
+      this.renderer.compile(g, this.cam.camera, this.scene);
+      this.renderer.compile(this.scene, this.cam.camera);
+    } catch (err) {
+      console.warn('Shader warm-up failed (continuing):', err);
+    }
+    g.traverse((o) => {
+      if (o instanceof THREE.Mesh || o instanceof THREE.Sprite) {
+        o.geometry.dispose();
+      }
+    });
   }
 
   private skyDome: THREE.Mesh;

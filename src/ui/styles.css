@@ -667,29 +667,29 @@ input[type='range'] {
 }
 
 /* Bottom-right weapon */
-.weapon {
+.weapon-panel {
   position: absolute;
   right: 24px;
   bottom: 22px;
   text-align: right;
 }
-.weapon .ammo {
+.weapon-panel .ammo {
   font-size: 44px;
   font-weight: 800;
   line-height: 1;
   text-shadow: 0 2px 4px #000;
 }
-.weapon .ammo small {
+.weapon-panel .ammo small {
   font-size: 18px;
   color: var(--text-dim);
 }
-.weapon .wname {
+.weapon-panel .wname {
   color: var(--text-dim);
   font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.weapon .reload {
+.weapon-panel .reload {
   color: var(--brass-2);
   font-weight: 700;
 }

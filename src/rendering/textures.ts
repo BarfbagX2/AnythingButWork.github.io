@@ -10,7 +10,8 @@ function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContex
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
-  const ctx = c.getContext('2d')!;
+  // Generated once and uploaded to WebGL; a CPU-backed canvas avoids a GPU readback.
+  const ctx = c.getContext('2d', { willReadFrequently: true })!;
   return [c, ctx];
 }
 
