@@ -1,0 +1,31 @@
+// Quick visual check: menu → setup → match, screenshots along the way.
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { chromium } = require('playwright');
+const out = process.argv[2] ?? 'tests/e2e/output';
+const url = process.argv[3] ?? 'http://localhost:5173/';
+const fs = await import('node:fs');
+fs.mkdirSync(out, { recursive: true });
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const logs = [];
+page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`));
+page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}\n${e.stack}`));
+await page.goto(url);
+await page.waitForSelector('[data-testid=play]');
+await page.screenshot({ path: `${out}/01-menu.png` });
+await page.click('[data-testid=play]');
+await page.waitForSelector('[data-testid=start-match]');
+await page.screenshot({ path: `${out}/02-setup.png` });
+await page.click('[data-testid=start-match]');
+await page.waitForSelector('[data-testid=hud]', { timeout: 60000 });
+await page.waitForTimeout(3000);
+await page.screenshot({ path: `${out}/03-game.png` });
+const info = await page.evaluate(() => {
+  const s = window.__hexline;
+  if (!s) return 'no session';
+  return { time: s.sim.time.toFixed(1), fps: s.frameStats.fps.toFixed(1), draws: s.renderer.stats.drawCalls, tris: s.renderer.stats.triangles, local: s.local?.def.id, pos: s.local ? [s.local.pos.x.toFixed(1), s.local.pos.y.toFixed(1), s.local.pos.z.toFixed(1)] : null };
+});
+console.log(JSON.stringify(info));
+console.log(logs.slice(0, 40).join('\n'));
+await browser.close();
