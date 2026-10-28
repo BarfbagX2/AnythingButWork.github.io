@@ -34,8 +34,11 @@ export class ThirdPersonCamera {
     this.kick = Math.min(0.12, this.kick + (deg * Math.PI) / 180);
   }
 
+  /** 1 = full screen shake; the "reduce camera shake" setting lowers it. */
+  shakeScale = 1;
+
   addShake(amount: number): void {
-    this.shake = Math.min(1, this.shake + amount);
+    this.shake = Math.min(1, this.shake + amount * this.shakeScale);
   }
 
   /** Current view pitch including visual recoil. */

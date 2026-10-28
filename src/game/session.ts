@@ -8,6 +8,8 @@ import { GameRenderer } from '../rendering/renderer';
 import { BotManager } from '../ai/botManager';
 import type { NetClient, Welcome } from '../network/client';
 import { applySnapshot, extrapolateProjectiles } from '../network/snapshot';
+import { spendAbilityPoints } from '../ai/shopping';
+import { setColorblind } from '../rendering/palette';
 import { InputManager, type UiKeyAction } from './input';
 import type { Settings } from './settings';
 
@@ -63,6 +65,7 @@ export class GameSession {
   private ended = false;
   private listeners = new Set<(e: SimEvent) => void>();
   private snapshotAt = 0;
+  private nextAutoLevel = 0;
   private snapshotInterval = 50;
 
   constructor(
@@ -110,7 +113,14 @@ export class GameSession {
     this.input.setSettings(s);
     this.renderer.setQuality(s.quality);
     this.renderer.cam.baseFov = s.fov;
+    this.renderer.cam.shakeScale = s.reduceShake ? 0.15 : 1;
+    setColorblind(s.colorblind);
     audio.setVolumes(s.volume);
+  }
+
+  /** Current user settings (HUD layers read display preferences from here). */
+  get currentSettings(): Settings {
+    return this.settings;
   }
 
   private resize = () => {
@@ -179,6 +189,12 @@ export class GameSession {
     this.zoom = s.zoom;
     if (!h) return;
     const cam = this.renderer.cam;
+    // "Auto-level abilities": spend points in the same order bots use.
+    if (this.settings.autoLevelAbilities && h.abilityPoints > 0 && this.sim.time >= this.nextAutoLevel) {
+      this.nextAutoLevel = this.sim.time + 0.5;
+      const slot = spendAbilityPoints(h)[0];
+      if (slot) this.queueAction({ type: 'upgradeAbility', slot });
+    }
     // Discrete actions (purchases, ability points, pings) are delivered even
     // while a menu such as the shop blocks movement and firing.
     if (this.actions.length) {

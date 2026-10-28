@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { relationColor } from './palette';
 import type { Hero, Neutral, Structure, Summon } from '../gameplay/entities';
 import { SF } from '../gameplay/types';
 import { Animator, buildHeroRig, disposeRig, type Rig } from './characters';
@@ -94,7 +95,7 @@ export class Nameplate {
     const bw = W - 56;
     c.fillStyle = 'rgba(0,0,0,0.7)';
     c.fillRect(bx - 2, 30, bw + 4, 16);
-    c.fillStyle = color === '#7fe08a' ? '#4fd66a' : color;
+    c.fillStyle = color;
     c.fillRect(bx, 32, bw * Math.max(0, Math.min(1, hpFrac)), 12);
     if (shieldFrac > 0) {
       c.fillStyle = 'rgba(220,240,255,0.85)';
@@ -216,7 +217,7 @@ export class HeroView {
     }
     this.shieldBubble.visible = shield > 0 && h.alive;
     this.slowRing.visible = slowed && h.alive;
-    const color = h.team === viewerTeam ? (isLocal ? '#ffffff' : '#7fe08a') : '#ff5a5a';
+    const color = isLocal ? '#ffffff' : relationColor(h.team, viewerTeam);
     this.plate.sprite.visible = h.alive && !isLocal;
     if (this.plate.sprite.visible) this.plate.draw(h.playerName, h.hp / h.maxHp, shield / h.maxHp, color, h.level);
   }
@@ -355,7 +356,7 @@ export class StructureView {
     }
     this.plate.sprite.visible = alive;
     if (alive) {
-      const color = s.team === viewerTeam ? '#7fe08a' : '#ff5a5a';
+      const color = relationColor(s.team, viewerTeam);
       const status = !s.vulnerable ? 'INVULNERABLE' : s.backdoor ? 'PROTECTED' : '';
       this.plate.draw(`${s.def.name}${s.phase === 2 ? ' (weakened)' : ''}`, s.hp / s.maxHp, 0, color, Math.round((s.hp / s.maxHp) * 100), status);
     }
@@ -492,6 +493,6 @@ export class SummonView {
     this.group.rotation.y = s.yaw;
     if (!s.alive) this.group.scale.setScalar(Math.max(0.01, 1 - (time - s.diedAt) * 1.5));
     this.plate.sprite.visible = s.alive && s.hp < s.maxHp;
-    if (this.plate.sprite.visible) this.plate.draw('', s.hp / s.maxHp, 0, s.team === viewerTeam ? '#7fe08a' : '#ff5a5a', 0);
+    if (this.plate.sprite.visible) this.plate.draw('', s.hp / s.maxHp, 0, relationColor(s.team, viewerTeam), 0);
   }
 }

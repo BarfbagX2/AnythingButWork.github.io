@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { relationBarColor } from './palette';
 import type { Trooper } from '../gameplay/entities';
 import { TEAM_COLORS } from './worldView';
 
@@ -128,7 +129,7 @@ export class TrooperView {
         const off = new THREE.Vector3(-(1 - frac) * 0.5, 0, 0.001).applyQuaternion(camQ);
         this.m4.compose(this.v.set(x + off.x, by + off.y, z + off.z), camQ, this.s.set(frac, 1, 1));
         this.hpFill.setMatrixAt(bars, this.m4);
-        this.hpFill.setColorAt(bars, team === viewerTeam ? this.col.set('#5cff7a') : this.col.set('#ff4a4a'));
+        this.hpFill.setColorAt(bars, this.col.set(relationBarColor(team, viewerTeam)));
         bars++;
       }
       n++;

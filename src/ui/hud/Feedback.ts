@@ -70,7 +70,7 @@ export class Feedback {
         this.hit.style.transform = `translate(-50%, -50%) rotate(45deg) scale(${e.crit ? 1.3 : 1})`;
         this.hitUntil = performance.now() + (killed ? 350 : 160);
         const cls = e.crit ? 'crit' : e.type === 'spirit' ? 'spirit' : '';
-        if (e.amount >= 1) this.spawn(String(e.amount), cls, e.pos.x, e.pos.y + 0.4, e.pos.z);
+        if (e.amount >= 1 && this.session.currentSettings.damageNumbers) this.spawn(String(e.amount), cls, e.pos.x, e.pos.y + 0.4, e.pos.z);
       } else if (e.target === local.id && e.amount >= 1 && e.src >= 0) {
         // Damage taken: shown subtly near the player.
       }
